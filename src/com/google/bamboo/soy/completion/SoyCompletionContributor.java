@@ -44,27 +44,8 @@ import org.jetbrains.annotations.NotNull;
 public class SoyCompletionContributor extends CompletionContributor {
 
   SoyCompletionContributor() {
-    // Complete variable names that are in scope when in expressions.
-    extend(
-        CompletionType.BASIC,
-        psiElement().inside(SoyExpression.class),
-        new CompletionProvider<CompletionParameters>() {
-          @Override
-          protected void addCompletions(
-              @NotNull CompletionParameters completionParameters,
-              ProcessingContext processingContext,
-              @NotNull CompletionResultSet completionResultSet) {
-            Collection<PsiNamedElement> params =
-                ParamUtils.getIdentifiersInScope(completionParameters.getPosition());
-            completionResultSet.addAllElements(
-                params
-                    .stream()
-                    .map(PsiNamedElement::getName)
-                    .map(param -> "$" + param)
-                    .map(LookupElementBuilder::create)
-                    .collect(Collectors.toList()));
-          }
-        });
+    addKeywordVisibility();
+    addVariableNamesInScope();
 
     // Complete template names for function calls.
     extend(
@@ -79,8 +60,29 @@ public class SoyCompletionContributor extends CompletionContributor {
               @NotNull CompletionParameters completionParameters,
               ProcessingContext processingContext,
               @NotNull CompletionResultSet completionResultSet) {
+
+            System.out.println("This triggers");
+
+            PsiElement identifierElement =
+                PsiTreeUtil.getParentOfType(
+                    completionParameters.getPosition(), SoyIdentifier.class);
             Collection<TemplateDefinitionElement> templates =
-                TemplateNameUtils.findLocalTemplateDefinitions(completionParameters.getPosition());
+                TemplateNameUtils.findLocalTemplateDefinitions(identifierElement);
+
+            templates
+                .stream()
+                .map(PsiElement::getText)
+                .map(
+                    (t) -> {
+                      System.out.println(t);
+                      return t;
+                    })
+                .filter(identifier -> identifier.startsWith("."))
+                .forEach(
+                    (t) -> {
+                      System.out.println(t);
+                    });
+
             completionResultSet.addAllElements(
                 templates
                     .stream()
@@ -88,32 +90,6 @@ public class SoyCompletionContributor extends CompletionContributor {
                     .filter(identifier -> identifier.startsWith("."))
                     .map(LookupElementBuilder::create)
                     .collect(Collectors.toList()));
-          }
-        });
-
-    // Complete `visibility="private"` in template definition open tag.
-    extend(
-        CompletionType.BASIC,
-        psiElement().andOr(psiElement().inside(SoyBeginTemplate.class)),
-        new CompletionProvider<CompletionParameters>() {
-          @Override
-          protected void addCompletions(
-              @NotNull CompletionParameters completionParameters,
-              ProcessingContext processingContext,
-              @NotNull CompletionResultSet completionResultSet) {
-            PsiElement prevSibling = completionParameters.getPosition().getPrevSibling();
-            while (prevSibling != null) {
-              if (!(prevSibling instanceof PsiWhiteSpace)) {
-                if (prevSibling instanceof SoyTemplateDefinitionIdentifier) {
-                  completionResultSet.addElement(
-                      LookupElementBuilder.create("visibility=\"private\""));
-                } else {
-                  return;
-                }
-              }
-
-              prevSibling = prevSibling.getPrevSibling();
-            }
           }
         });
 
@@ -284,6 +260,58 @@ public class SoyCompletionContributor extends CompletionContributor {
               ProcessingContext processingContext,
               @NotNull CompletionResultSet completionResultSet) {
             completionResultSet.addAllElements(soyTypeLiterals);
+          }
+        });
+  }
+
+  /** Complete variable names that are in scope when in expressions. */
+  private void addVariableNamesInScope() {
+    extend(
+        CompletionType.BASIC,
+        psiElement().inside(SoyExpression.class),
+        new CompletionProvider<CompletionParameters>() {
+          @Override
+          protected void addCompletions(
+              @NotNull CompletionParameters completionParameters,
+              ProcessingContext processingContext,
+              @NotNull CompletionResultSet completionResultSet) {
+            Collection<PsiNamedElement> params =
+                ParamUtils.getIdentifiersInScope(completionParameters.getPosition());
+            completionResultSet.addAllElements(
+                params
+                    .stream()
+                    .map(PsiNamedElement::getName)
+                    .map(param -> "$" + param)
+                    .map(LookupElementBuilder::create)
+                    .collect(Collectors.toList()));
+          }
+        });
+  }
+
+  /** Complete `visibility="private"` in template definition open tag. */
+  private void addKeywordVisibility() {
+    extend(
+        CompletionType.BASIC,
+        psiElement().andOr(psiElement().inside(SoyBeginTemplate.class)),
+        new CompletionProvider<CompletionParameters>() {
+          @Override
+          protected void addCompletions(
+              @NotNull CompletionParameters completionParameters,
+              ProcessingContext processingContext,
+              @NotNull CompletionResultSet completionResultSet) {
+            PsiElement prevSibling = completionParameters.getPosition().getPrevSibling();
+            while (prevSibling != null) {
+              if (!(prevSibling instanceof PsiWhiteSpace)) {
+                if (prevSibling instanceof SoyTemplateDefinitionIdentifier) {
+                  completionResultSet.addElement(
+                      LookupElementBuilder.create("visibility=\"private\""));
+                } else {
+                  return;
+                }
+              }
+
+              prevSibling = prevSibling.getPrevSibling();
+            }
           }
         });
   }

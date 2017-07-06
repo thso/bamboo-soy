@@ -16,6 +16,7 @@ package com.google.bamboo.soy;
 
 import com.google.bamboo.soy.elements.TemplateDefinitionElement;
 import com.google.bamboo.soy.parser.SoyAliasBlock;
+import com.google.bamboo.soy.parser.SoyTemplateDefinitionIdentifier;
 import com.google.bamboo.soy.stubs.index.TemplateDefinitionIndex;
 import com.google.common.collect.ImmutableList;
 import com.intellij.openapi.project.Project;
@@ -43,7 +44,7 @@ public class TemplateNameUtils {
     if (templateIdentifier.startsWith(".")) {
       return findLocalTemplateDefinitions(element)
           .stream()
-          .filter(elt -> elt.getName().equals(templateIdentifier))
+          .filter(elt -> templateIdentifier.equals(elt.getName()))
           .collect(Collectors.toList());
     } else {
       String normalizedIdentifier =
@@ -68,7 +69,8 @@ public class TemplateNameUtils {
         .flatMap(
             (key) ->
                 TemplateDefinitionIndex.INSTANCE
-                    .get(key, file.getProject(), GlobalSearchScope.fileScope(file))
+                    .get(
+                        key, file.getProject(), GlobalSearchScope.fileScope(file.getOriginalFile()))
                     .stream())
         .collect(Collectors.toList());
   }
